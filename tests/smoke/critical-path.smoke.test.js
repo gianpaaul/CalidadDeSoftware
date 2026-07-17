@@ -86,11 +86,60 @@ describe("Smoke test (verificacion critica post-despliegue)", () => {
     expect(status).toBe(200);
   });
 
-  test.todo(
-    "el endpoint GET /accounts/:id responde en menos de 300 ms para una cuenta existente"
-  );
+  // CORRECCIÓN: Implementar tests pendientes de smoke
+  // test.todo("el endpoint GET /accounts/:id responde en menos de 300 ms para una cuenta existente");
+  test("el endpoint GET /accounts/:id responde en menos de 300 ms para una cuenta existente", async () => {
+    const cuenta = await api("/accounts", {
+      method: "POST",
+      body: JSON.stringify({ owner: "SmokePerformance" }),
+    });
 
-  test.todo(
-    "las cinco rutas principales (health, accounts, deposit, withdraw, transfers) responden todas dentro de un mismo recorrido secuencial sin error 500"
-  );
+    const inicio = Date.now();
+    const res = await api(`/accounts/${cuenta.body.id}`);
+    const fin = Date.now();
+
+    expect(res.status).toBe(200);
+    expect(fin - inicio).toBeLessThan(300);
+  });
+
+  // test.todo("las cinco rutas principales (health, accounts, deposit, withdraw, transfers) responden todas dentro de un mismo recorrido secuencial sin error 500");
+  test("las cinco rutas principales (health, accounts, deposit, withdraw, transfers) responden todas dentro de un mismo recorrido secuencial sin error 500", async () => {
+    const health = await api("/health");
+    expect(health.status).toBe(200);
+
+    const origen = await api("/accounts", {
+      method: "POST",
+      body: JSON.stringify({ owner: "SmokeSeq1" }),
+    });
+    expect(origen.status).toBe(201);
+
+    const destino = await api("/accounts", {
+      method: "POST",
+      body: JSON.stringify({ owner: "SmokeSeq2" }),
+    });
+    expect(destino.status).toBe(201);
+
+    const deposit = await api(`/accounts/${origen.body.id}/deposit`, {
+      method: "POST",
+      body: JSON.stringify({ amountCents: 1000 }),
+    });
+    expect(deposit.status).toBe(200);
+
+    const transfer = await api("/transfers", {
+      method: "POST",
+      body: JSON.stringify({
+        fromId: origen.body.id,
+        toId: destino.body.id,
+        amountCents: 500,
+        reference: `SMOKE-${Date.now()}`
+      }),
+    });
+    expect(transfer.status).toBe(201);
+
+    const withdraw = await api(`/accounts/${destino.body.id}/withdraw`, {
+      method: "POST",
+      body: JSON.stringify({ amountCents: 500 }),
+    });
+    expect(withdraw.status).toBe(200);
+  });
 });
